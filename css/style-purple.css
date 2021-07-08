@@ -803,13 +803,14 @@ a:hover {
 }
 
 .work-content .w-like {
-  font-size: 2.5rem;
-  color: #8400ff;
-  float: right;
+  font-size: 1.5rem;
+  color: #00ff22;
+  float:  center;
 }
 
 .work-content .w-like a {
-  color: #8400ff;
+  color: #00ff22;
+  float:  center;
 }
 
 .work-content .w-like .num-like {
