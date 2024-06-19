@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Placemark Checker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/10.2.0/math.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xml2js/0.4.23/xml2js.min.js"></script>
+</head>
+<body>
+    <script>
+        class Placemark {
+            constructor(name, positions) {
+                this.markName = name;
+                this.bottomLeft = positions[0];
+                this.topLeft = positions[1];
+                this.topRight = positions[2];
+                this.bottomRight = positions[3];
+            }
+
+            isPointWithin(point) {
+                const AB = math.subtract(this.topLeft, this.bottomLeft);
+                const AD = math.subtract(this.bottomRight, this.bottomLeft);
+                const AP = math.subtract(point, this.bottomLeft);
+
+                const AB_dot_AB = math.dot(AB, AB);
+                const AB_dot_AP = math.dot(AB, AP);
+                const AD_dot_AD = math.dot(AD, AD);
+                const AD_dot_AP = math.dot(AD, AP);
+
+                return 0 <= AB_dot_AP && AB_dot_AP <= AB_dot_AB && 0 <= AD_dot_AP && AD_dot_AP <= AD_dot_AD;
+            }
+        }
+
+        async function loadPlacemarks(xmlUrl) {
+            const response = await fetch(xmlUrl);
+            const xmlText = await response.text();
+            const xmlDoc = await xml2js.parseStringPromise(xmlText);
+
+            const placemarks = [];
+            const marks = xmlDoc.root.Placemark;
+
+            for (const mark of marks) {
+                const placemarkName = mark.name[0];
+                const coordinatesString = mark.MultiGeometry[0].LineString[0].coordinates[0];
+                const coordinateParts = coordinatesString.trim().split(/\s+/).map(coord => coord.split(',').map(Number));
+                const positions = [
+                    math.complex(coordinateParts[0][0], coordinateParts[0][1]),
+                    math.complex(coordinateParts[3][0], coordinateParts[3][1]),
+                    math.complex(coordinateParts[6][0], coordinateParts[6][1]),
+                    math.complex(coordinateParts[9][0], coordinateParts[9][1])
+                ];
+                placemarks.push(new Placemark(placemarkName, positions));
+            }
+
+            return placemarks;
+        }
+
+        function findPointInPlacemarks(point, placemarks) {
+            for (const placemark of placemarks) {
+                if (placemark.isPointWithin(point)) {
+                    console.log(`The point is inside: ${placemark.markName}`);
+                    return placemark.markName;
+                }
+            }
+            return null;
+        }
+
+        function findClosestPlacemark(target, placemarks) {
+            let closest = null;
+            let dist = Infinity;
+
+            for (const placemark of placemarks) {
+                const corners = [placemark.bottomLeft, placemark.bottomRight, placemark.topLeft, placemark.topRight];
+                for (const corner of corners) {
+                    const newDist = math.distance(corner, target);
+                    if (newDist < dist) {
+                        closest = placemark;
+                        dist = newDist;
+                    }
+                }
+            }
+
+            console.log(closest.markName);
+            return closest;
+        }
+
+        // Usage example
+        (async function() {
+            const placemarks = await loadPlacemarks('squares.xml');
+            const target = math.complex(-4.9275, 55.6629);
+            findPointInPlacemarks(target, placemarks);
+            findClosestPlacemark(target, placemarks);
+        })();
+    </script>
+</body>
+</html>
