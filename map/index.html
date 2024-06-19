@@ -3,7 +3,6 @@
 <head>
     <title>Placemark Checker</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/10.2.0/math.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xml2js/0.4.23/xml2js.min.js"></script>
 </head>
 <body>
     <script>
@@ -33,21 +32,24 @@
         async function loadPlacemarks(xmlUrl) {
             const response = await fetch(xmlUrl);
             const xmlText = await response.text();
-            const xmlDoc = await xml2js.parseStringPromise(xmlText);
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "application/xml");
 
             const placemarks = [];
-            const marks = xmlDoc.root.Placemark;
+            const marks = xmlDoc.getElementsByTagName("Placemark");
 
             for (const mark of marks) {
-                const placemarkName = mark.name[0];
-                const coordinatesString = mark.MultiGeometry[0].LineString[0].coordinates[0];
+                const placemarkName = mark.getElementsByTagName("name")[0].textContent;
+                const coordinatesString = mark.getElementsByTagName("coordinates")[0].textContent;
                 const coordinateParts = coordinatesString.trim().split(/\s+/).map(coord => coord.split(',').map(Number));
+                
                 const positions = [
-                    math.complex(coordinateParts[0][0], coordinateParts[0][1]),
-                    math.complex(coordinateParts[3][0], coordinateParts[3][1]),
-                    math.complex(coordinateParts[6][0], coordinateParts[6][1]),
-                    math.complex(coordinateParts[9][0], coordinateParts[9][1])
-                ];
+                    [coordinateParts[0][0], coordinateParts[0][1]],
+                    [coordinateParts[1][0], coordinateParts[1][1]],
+                    [coordinateParts[2][0], coordinateParts[2][1]],
+                    [coordinateParts[3][0], coordinateParts[3][1]]
+                ].map(coord => math.complex(coord[0], coord[1]));
+
                 placemarks.push(new Placemark(placemarkName, positions));
             }
 
@@ -71,7 +73,7 @@
             for (const placemark of placemarks) {
                 const corners = [placemark.bottomLeft, placemark.bottomRight, placemark.topLeft, placemark.topRight];
                 for (const corner of corners) {
-                    const newDist = math.distance(corner, target);
+                    const newDist = math.distance([corner.re, corner.im], [target.re, target.im]);
                     if (newDist < dist) {
                         closest = placemark;
                         dist = newDist;
